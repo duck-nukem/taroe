@@ -11,10 +11,12 @@ Open `index.html` in a browser. No build step, no server needed.
   Stopped Clock (ignores one boss's cut) push back.
 - Press **Ready** early. If you win the round, every 2 seconds left pays $1 (**Quick study**).
 - Pick cards from the deck pane to rebuild the spread in order, then **Play**.
-- Every round starts with **3 hands** and **2 strikes**.
+- Every round starts with **1 hand** and **2 strikes**.
   - A card that wasn't in the spread, or a missing one: −1 hand.
   - The right cards in the wrong order: −1 strike.
   - Either counter reaches 0: the run is over.
+  - After a wrong play, cards already in the right slot stay locked in (green). Only the wrong ones go back.
+- **Give up** (sidebar) ends the run early and reveals the spread.
 - Winning a round pays $1 per hand left + $2 per strike left. Spend it in the shop.
 - **Difficulty** (pick it on the title screen): the spread grows by +1 (Easier), +2 (Normal) or +3 (Hard) cards each level.
 - **Growing chain** (default): the spread keeps its order and grows each level.

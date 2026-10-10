@@ -750,3 +750,8 @@ p.bad { color: #f59c8f; }
 @media (max-width: 820px) {
   .palace-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- locked-in cards, give up ---------- */
+.slot.locked .face.front { box-shadow: var(--shadow), 0 0 0 3px var(--good), 0 0 16px rgba(108, 196, 143, 0.5); }
+button.danger { background: linear-gradient(#a8483b, #7e2f25); color: #fbe3dd; }
+#btn-giveup:disabled { opacity: 0.3; }

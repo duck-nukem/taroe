@@ -38,6 +38,7 @@ window.Taroe = window.Taroe || {};
       $('#btn-ready').addEventListener('click', () => this.ready());
       $('#btn-tutorial').addEventListener('click', () => T.openPalaceTutorial(this));
       $('#btn-palace').addEventListener('click', () => this.openPalace());
+      $('#btn-giveup').addEventListener('click', () => this.confirmGiveUp());
       $('#btn-settings').addEventListener('click', () => this.openSettings());
       $('#btn-help').addEventListener('click', () => this.openHelp());
       $('#modal').addEventListener('click', (e) => {
@@ -71,7 +72,7 @@ window.Taroe = window.Taroe || {};
       }
     }
 
-    onMiss({ kind, cancelled, note, lost }) {
+    onMiss({ kind, cancelled, note, kept, lost }) {
       const slots = $('#slots');
       slots.classList.remove('shake');
       void slots.offsetWidth;
@@ -81,6 +82,7 @@ window.Taroe = window.Taroe || {};
           ? 'A stranger is in your spread — or someone is missing. −1 hand.'
           : 'Right cards, wrong order. −1 strike.';
       if (cancelled) msg = `${kind === 'cards' ? 'Wrong cards' : 'Wrong order'} — ${note || 'forgiven.'}`;
+      if (kept && !lost) msg += ` ${kept} card${kept === 1 ? '' : 's'} in the right place stay${kept === 1 ? 's' : ''}.`;
       this.toast(msg, cancelled ? 'info' : 'bad');
       if (!lost) this.renderAll();
     }
@@ -191,6 +193,7 @@ window.Taroe = window.Taroe || {};
         sub.textContent = '';
       }
       $('#btn-ready').hidden = g.phase !== 'memorize';
+      $('#btn-giveup').disabled = g.phase !== 'memorize' && g.phase !== 'recall';
       $('#timer').hidden = g.phase !== 'memorize';
     }
 
@@ -209,10 +212,14 @@ window.Taroe = window.Taroe || {};
       if (key !== this.slotKey) {
         this.slotKey = key;
         host.innerHTML = '';
-        this.slotEls = g.sequence.map((_, i) => {
+        // Only cards that weren't already lying in that slot get dealt in; the rest just stay.
+        const prev = this.dealtRun === g.runId ? this.dealtSeq : [];
+        let dealing = 0;
+        this.slotEls = g.sequence.map((id, i) => {
           const el = document.createElement('div');
-          el.className = deal ? 'slot dealing' : 'slot';
-          el.style.setProperty('--i', i);
+          const fresh = deal && prev[i] !== id;
+          el.className = fresh ? 'slot dealing' : 'slot';
+          if (fresh) el.style.setProperty('--i', dealing++);
           el.innerHTML = `
             <div class="card3d">
               <div class="face front"><img alt="" draggable="false"></div>
@@ -224,6 +231,9 @@ window.Taroe = window.Taroe || {};
           host.appendChild(el);
           return el;
         });
+        this.dealtSeq = g.sequence.slice();
+        this.dealtRun = g.runId;
+        this.dealEnd = performance.now() + (dealing ? 450 + dealing * 60 + 100 : 0);
         this.layoutSlots();
       }
 
@@ -239,9 +249,11 @@ window.Taroe = window.Taroe || {};
           img.dataset.id = id;
         }
         const revealed = g.phase === 'recall' && r.revealed.has(i);
+        const locked = g.phase === 'recall' && r.locked.has(i);
         el.classList.toggle('up', id != null && !faceDown);
         el.classList.toggle('revealed', revealed);
-        el.classList.toggle('guess', g.phase === 'recall' && id != null && !revealed);
+        el.classList.toggle('locked', locked);
+        el.classList.toggle('guess', g.phase === 'recall' && id != null && !revealed && !locked);
         el.classList.toggle('won', g.phase === 'roundWon' || g.phase === 'victory');
         el.classList.toggle('lost', g.phase === 'gameOver');
         el.classList.toggle('next', g.phase === 'recall' && r.placed.indexOf(null) === i);
@@ -463,7 +475,7 @@ window.Taroe = window.Taroe || {};
           html: `
             <div class="reward">
               <div>
-                <h2>The cards fall silent.</h2>
+                <h2>${g.round && g.round.gaveUp ? 'You lay the cards down.' : 'The cards fall silent.'}</h2>
                 <p class="muted">You reached level ${g.level}. Longest spread remembered: ${g.best || 0} cards.
                   Study the true order above before you begin again.</p>
               </div>
@@ -526,6 +538,7 @@ window.Taroe = window.Taroe || {};
       // Last: rebuild the spread in its new order, then Invert + Play.
       this.slotKey = null;
       this.renderSlots({ deal: false });
+      this.dealEnd = 0;
       this.slotEls.forEach((el) => {
         const id = Number(el.querySelector('img').dataset.id);
         const from = rects.get(id);
@@ -562,14 +575,15 @@ window.Taroe = window.Taroe || {};
     // Done memorizing early: the seconds left count toward the Quick study bonus.
     ready() {
       const t = this.timer;
-      const left = t && t.delay <= 0 ? Math.max(0, t.remaining / 1000) : 0;
+      if (!t || t.delay > 0) return; // cards are still being dealt — you haven't seen them yet
+      const left = Math.max(0, t.remaining / 1000);
       this.game.finishMemorize(left);
     }
 
     startTimer() {
       const g = this.game;
       const total = g.round.revealTime * 1000;
-      const dealDelay = g.round.twisted ? 200 : 350 + g.sequence.length * 60; // let the deal animation land first
+      const dealDelay = Math.max(g.round.twisted ? 200 : 0, (this.dealEnd || 0) - performance.now()); // let the deal land first
       const t = (this.timer = { total, remaining: total, delay: dealDelay, last: performance.now() });
       const fill = $('#timer-fill');
       const text = $('#timer-text');
@@ -577,6 +591,7 @@ window.Taroe = window.Taroe || {};
         if (this.timer !== t || g.phase !== 'memorize') return;
         const dt = now - t.last;
         t.last = now;
+        $('#btn-ready').disabled = t.delay > 0;
         if ($('#modal').hidden) {
           if (t.delay > 0) t.delay -= dt;
           else t.remaining -= dt;
@@ -627,6 +642,25 @@ window.Taroe = window.Taroe || {};
         (el) => {
           el.querySelectorAll('[data-id]').forEach((b) => (b.onclick = () => this.closeModal(Number(b.dataset.id))));
           el.querySelector('[data-act=cancel]').onclick = () => this.closeModal(null);
+        }
+      );
+    }
+
+    confirmGiveUp() {
+      if (this.game.phase !== 'memorize' && this.game.phase !== 'recall') return;
+      this.openModal(
+        `<h2>Give up this run?</h2>
+         <p>The spread will be revealed so you can study it, and the run ends.</p>
+         <div class="actions">
+           <button data-act="keep">Keep playing</button>
+           <button class="danger" data-act="giveup">Give up</button>
+         </div>`,
+        (el) => {
+          el.querySelector('[data-act=keep]').onclick = () => this.closeModal(null);
+          el.querySelector('[data-act=giveup]').onclick = () => {
+            this.closeModal(null);
+            this.game.giveUp();
+          };
         }
       );
     }
@@ -795,9 +829,12 @@ window.Taroe = window.Taroe || {};
            <li>A spread of Major Arcana is laid out face up. You have a few seconds to memorize it.</li>
            <li>The cards turn over. Pick cards from the deck at the bottom to lay them back <b>in the same order</b>.
              Click a placed card to take it back.</li>
-           <li>Each round you have <b class="c-hand">3 hands</b> and <b class="c-strike">2 strikes</b>.
+           <li>Each round you have <b class="c-hand">${T.BASE_STATS.hands} hand${T.BASE_STATS.hands === 1 ? '' : 's'}</b>
+             and <b class="c-strike">${T.BASE_STATS.strikes} strikes</b>.
              Playing a card that wasn't in the spread (or leaving one out) costs a hand.
              The right cards in the wrong order cost a strike. Run out of either and the run is over.</li>
+           <li>After a wrong play, cards already in the right slot stay (green). Only the wrong ones go back to the deck.</li>
+           <li>Stuck? <b>Give up</b> in the sidebar ends the run and shows you the true spread.</li>
            <li>Win a round: <b>$1</b> per hand left, <b>$2</b> per strike left. Spend it in the shop.</li>
            <li>Memorize time is counted per <b>new</b> card (default 2.5s). Every boss you beat cuts it by 15%.
              Press <kbd>Space</kbd> as soon as you have it: seconds left over pay a <b>Quick study</b> bonus if you win the round.</li>

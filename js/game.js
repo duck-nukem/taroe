@@ -20,7 +20,7 @@ window.Taroe = window.Taroe || {};
   };
 
   const BASE_STATS = {
-    hands: 3,
+    hands: 1,
     strikes: 2,
     revealBonus: 0, // flat extra seconds per countdown
     revealMult: 0, // +x% memorize time
@@ -148,6 +148,7 @@ window.Taroe = window.Taroe || {};
         revealTime: 0,
         secondsLeft: 0, // banked by pressing Ready early
         revealed: new Set(), // slot indices that stay face up
+        locked: new Set(), // slots the player already got right on an earlier play
         marked: new Set(), // card ids highlighted in the pane
         placed: Array(len).fill(null),
         placeOrder: [],
@@ -182,6 +183,12 @@ window.Taroe = window.Taroe || {};
 
     locusOf(slot) {
       return this.lociOf.get(this.sequence[slot]);
+    }
+
+    giveUp() {
+      if (this.phase !== 'memorize' && this.phase !== 'recall') return;
+      this.round.gaveUp = true;
+      this.setPhase('gameOver');
     }
 
     faceBoss() {
@@ -316,7 +323,7 @@ window.Taroe = window.Taroe || {};
 
     unplace(slot) {
       const r = this.round;
-      if (this.phase !== 'recall' || r.revealed.has(slot) || r.placed[slot] == null) return;
+      if (this.phase !== 'recall' || r.revealed.has(slot) || r.locked.has(slot) || r.placed[slot] == null) return;
       r.placed[slot] = null;
       r.placeOrder = r.placeOrder.filter((s) => s !== slot);
       this.emit('placed', { slot, cardId: null });
@@ -329,7 +336,7 @@ window.Taroe = window.Taroe || {};
 
     clearPlaced() {
       const r = this.round;
-      r.placed = r.placed.map((id, i) => (r.revealed.has(i) ? id : null));
+      r.placed = r.placed.map((id, i) => (r.revealed.has(i) || r.locked.has(i) ? id : null));
       r.placeOrder = [];
     }
 
@@ -353,12 +360,19 @@ window.Taroe = window.Taroe || {};
         if (kind === 'cards') r.hands--;
         else r.strikes--;
       }
-      const correctPositions = r.placed.filter((id, i) => id === this.sequence[i]).length;
+      // Cards already in the right slot stay; only the wrong ones go back to the deck.
+      let kept = 0;
+      r.placed.forEach((id, i) => {
+        if (id === this.sequence[i] && !r.revealed.has(i) && !r.locked.has(i)) {
+          r.locked.add(i);
+          kept++;
+        }
+      });
       r.misses.push({ kind, cancelled: ctx.cancelled });
       this.clearPlaced();
 
       const lost = r.hands <= 0 || r.strikes <= 0;
-      this.emit('miss', { kind, cancelled: ctx.cancelled, note: ctx.note, correctPositions, lost });
+      this.emit('miss', { kind, cancelled: ctx.cancelled, note: ctx.note, kept, lost });
       if (lost) this.setPhase('gameOver');
     }
 
@@ -456,4 +470,5 @@ window.Taroe = window.Taroe || {};
 
   T.Game = Game;
   T.RULES = RULES;
+  T.BASE_STATS = BASE_STATS;
 })(window.Taroe);
