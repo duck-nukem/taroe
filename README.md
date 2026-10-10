@@ -17,6 +17,8 @@ Open `index.html` in a browser. No build step, no server needed.
   - Either counter reaches 0: the run is over.
   - After a wrong play, cards already in the right slot stay locked in (green). Only the wrong ones go back.
 - **Give up** (sidebar) ends the run early and reveals the spread.
+- The deck pane is sorted A–Z, ignoring "The". Start typing a card's name (or its numeral, like `xiii`) to filter it.
+  **Enter** places the highlighted top match and **Esc** clears the filter. With an empty filter, Enter plays the hand.
 - Winning a round pays $1 per hand left + $2 per strike left. Spend it in the shop.
 - **Difficulty** (pick it on the title screen): the spread grows by +1 (Easier), +2 (Normal) or +3 (Hard) cards each level.
 - **Growing chain** (default): the spread keeps its order and grows each level.

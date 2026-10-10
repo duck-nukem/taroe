@@ -755,3 +755,21 @@ p.bad { color: #f59c8f; }
 .slot.locked .face.front { box-shadow: var(--shadow), 0 0 0 3px var(--good), 0 0 16px rgba(108, 196, 143, 0.5); }
 button.danger { background: linear-gradient(#a8483b, #7e2f25); color: #fbe3dd; }
 #btn-giveup:disabled { opacity: 0.3; }
+
+/* ---------- deck filter ---------- */
+#pane-filter {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: #0f1715;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+#pane-filter:focus { outline: none; border-color: var(--gold); }
+#pane-filter::placeholder { color: #6b746d; font-style: italic; }
+#pane-filter:disabled { opacity: 0.4; }
+#pane-empty { font-size: 13px; color: #f59c8f; font-style: italic; text-align: center; }
+.pcard.filtered-out { display: none; }
+#pane.filtering .pcard.first-match { transform: translateY(-8px) scale(1.06); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(227, 187, 98, 0.6); z-index: 1; }

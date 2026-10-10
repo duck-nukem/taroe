@@ -39,6 +39,9 @@ window.Taroe = window.Taroe || {};
       $('#btn-tutorial').addEventListener('click', () => T.openPalaceTutorial(this));
       $('#btn-palace').addEventListener('click', () => this.openPalace());
       $('#btn-giveup').addEventListener('click', () => this.confirmGiveUp());
+      this.filter = '';
+      $('#pane-filter').addEventListener('input', (e) => this.setFilter(e.target.value));
+      $('#pane-filter').addEventListener('keydown', (e) => this.onFilterKey(e));
       $('#btn-settings').addEventListener('click', () => this.openSettings());
       $('#btn-help').addEventListener('click', () => this.openHelp());
       $('#modal').addEventListener('click', (e) => {
@@ -100,6 +103,10 @@ window.Taroe = window.Taroe || {};
         else return;
       } else if (e.key === 'Backspace' && g.phase === 'recall') {
         g.undo();
+      } else if (g.phase === 'recall' && e.key.length === 1 && /[a-z0-9]/i.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const input = $('#pane-filter');
+        input.focus();
+        this.setFilter(this.filter + e.key);
       } else if (e.key === ' ' && g.phase === 'memorize') {
         this.ready();
       } else return;
@@ -181,7 +188,7 @@ window.Taroe = window.Taroe || {};
         const filled = r.placed.filter((x) => x != null).length;
         title.textContent = 'Recall';
         const hint = boss && boss.recallHint ? boss.recallHint : 'Lay the cards back in their order';
-        sub.textContent = `${hint} · ${filled}/${r.placed.length} · Enter to play, Backspace to undo`;
+        sub.textContent = `${hint} · ${filled}/${r.placed.length} · Type a name to filter · Enter to play`;
       } else if (g.phase === 'roundWon' || g.phase === 'victory') {
         title.textContent = 'Remembered';
         sub.textContent = `Level ${g.level} cleared`;
@@ -293,13 +300,17 @@ window.Taroe = window.Taroe || {};
         this.paneKey = key;
         host.innerHTML = '';
         this.paneEls.clear();
-        for (const id of g.deck) {
+        const byName = (a, b) => T.cardSortName(T.cardById(a)).localeCompare(T.cardSortName(T.cardById(b)));
+        for (const id of g.deck.slice().sort(byName)) {
           const card = T.cardById(id);
           const el = document.createElement('button');
           el.className = 'pcard';
           el.title = `${card.numeral} · ${card.name}`;
           el.innerHTML = `<img src="${card.img}" alt="${esc(card.name)}" draggable="false"><span class="mark">✦</span>`;
-          el.addEventListener('click', () => g.place(id));
+          el.addEventListener('click', () => {
+            g.place(id);
+            this.setFilter('');
+          });
           host.appendChild(el);
           this.paneEls.set(id, el);
         }
@@ -308,6 +319,8 @@ window.Taroe = window.Taroe || {};
 
       const active = g.phase === 'recall';
       pane.classList.toggle('veiled', !active);
+      $('#pane-filter').disabled = !active;
+      if (!active && this.filter) this.setFilter('');
       $('#pane-hint').textContent =
         g.phase === 'memorize' || g.phase === 'twist' ? 'The deck waits until the cards turn over…' : '';
       for (const [id, el] of this.paneEls) {
@@ -315,8 +328,61 @@ window.Taroe = window.Taroe || {};
         el.classList.toggle('used', active && r.placed.includes(id));
         el.classList.toggle('marked', active && r.marked.has(id));
       }
+      this.applyFilter();
       $('#btn-play').disabled = !g.canPlay();
       $('#btn-clear').disabled = !active;
+    }
+
+    // ---- type-to-filter in the deck pane ------------------------------------------
+
+    matches(id) {
+      const q = this.filter.trim().toLowerCase();
+      if (!q) return true;
+      const card = T.cardById(id);
+      return T.cardSortName(card).toLowerCase().includes(q) || card.numeral.toLowerCase() === q;
+    }
+
+    // Cards still available that match, in pane order. Enter places the first one.
+    filterHits() {
+      return [...this.paneEls].filter(([id, el]) => !el.disabled && this.matches(id)).map(([id]) => id);
+    }
+
+    applyFilter() {
+      const filtering = !!this.filter.trim();
+      const first = filtering ? this.filterHits()[0] : null;
+      // Hold the pane at its full height so the spread above doesn't jump while filtering.
+      const host = $('#pane-cards');
+      if (filtering && !host.style.minHeight) host.style.minHeight = `${host.offsetHeight}px`;
+      if (!filtering) host.style.minHeight = '';
+      for (const [id, el] of this.paneEls) {
+        el.classList.toggle('filtered-out', filtering && !this.matches(id));
+        el.classList.toggle('first-match', id === first);
+      }
+      $('#pane').classList.toggle('filtering', filtering);
+      $('#pane-empty').hidden = !filtering || first != null;
+    }
+
+    setFilter(value) {
+      this.filter = value;
+      const input = $('#pane-filter');
+      if (input.value !== value) input.value = value;
+      if (!value && document.activeElement === input) input.blur();
+      this.applyFilter();
+    }
+
+    onFilterKey(e) {
+      const g = this.game;
+      if (e.key === 'Enter') {
+        const [first] = this.filterHits();
+        if (this.filter.trim() && first != null) g.place(first);
+        else if (!this.filter.trim()) g.play();
+        this.setFilter('');
+      } else if (e.key === 'Escape') {
+        this.setFilter('');
+      } else if (e.key === 'Backspace' && !this.filter) {
+        g.undo();
+      } else return;
+      e.preventDefault();
     }
 
     layoutPane() {
@@ -847,7 +913,8 @@ window.Taroe = window.Taroe || {};
            Each position in the spread is a stop on that walk, shown under the card. When a card appears,
            imagine it vividly at that stop: <i>Death is knocking at the front door; the Hanged Man swings from the coat hook.</i>
            The stranger and more sensory the image, the better it sticks. To recall, walk the route again and see who is there.</p>
-         <p class="muted">New to this? Try the tutorial, then build your own route under “Your palace”. Keys: <kbd>Space</kbd> ready · <kbd>Enter</kbd> play · <kbd>Backspace</kbd> undo.</p>
+         <p class="muted">New to this? Try the tutorial, then build your own route under “Your palace”. Keys: <kbd>Space</kbd> ready · <kbd>Enter</kbd> play · <kbd>Backspace</kbd> undo ·
+           start typing a card’s name to filter the deck, <kbd>Enter</kbd> to place the top match, <kbd>Esc</kbd> to clear.</p>
          <div class="actions"><button class="primary" data-act="close">Got it</button></div>`,
         (el) => (el.querySelector('[data-act=close]').onclick = () => this.closeModal(null))
       );

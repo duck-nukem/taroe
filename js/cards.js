@@ -35,3 +35,6 @@ Taroe.CARDS = [
 }));
 
 Taroe.cardById = (id) => Taroe.CARDS[id];
+
+// "The Hanged Man" sorts and matches as "Hanged Man".
+Taroe.cardSortName = (card) => card.name.replace(/^The\s+/i, '');
