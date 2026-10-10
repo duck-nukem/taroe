@@ -5,7 +5,11 @@ Open `index.html` in a browser. No build step, no server needed.
 
 ## Rules
 
-- Level 1 deals 3 cards face up for 5 s (Settings: 1–7 s). Then they flip over.
+- Level 1 deals 3 cards face up, then they flip over. Memorize time is **per new card**: 2.5 s by default (Settings: 1–5 s).
+  Only cards you haven't learned yet count, so a level that adds 2 cards gives you 5 s.
+- Each boss you beat cuts memorize time by 15%, but never below 0.8 s per card. The Hourglass (+20% time) and the
+  Stopped Clock (ignores one boss's cut) push back.
+- Press **Ready** early. If you win the round, every 2 seconds left pays $1 (**Quick study**).
 - Pick cards from the deck pane to rebuild the spread in order, then **Play**.
 - Every round starts with **3 hands** and **2 strikes**.
   - A card that wasn't in the spread, or a missing one: −1 hand.
@@ -29,6 +33,10 @@ Every 3rd level is a boss. A boss twists the spread after you memorize it. The t
 | The Tower ⚡ | The spread is shuffled face up, then you get a new countdown. *First boss only.* |
 
 Beating a boss pays +$3.
+
+The game opens on a title screen, so you can set difficulty, build your palace or change settings before a run.
+**Your palace** has one stop per card and counts how many of the 22 you've filled.
+Blank stops borrow the example route.
 
 The memory palace labels under each slot are a route of *loci* (Settings: edit them, one per line).
 The **Memory palace tutorial** (title screen or sidebar) teaches the method of loci. You build a route, practice

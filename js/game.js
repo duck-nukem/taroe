@@ -10,6 +10,10 @@ window.Taroe = window.Taroe || {};
     startLength: 3, // cards in level 1
     growth: { easier: 1, normal: 2, hard: 3 }, // cards added per level, by difficulty
     bossEvery: 3, // every Nth level is a boss level
+    bossTimeCut: 0.85, // each boss beaten multiplies seconds-per-card by this
+    minSecondsPerCard: 0.8, // ...but never below this
+    minMemorize: 1.5, // seconds, for any countdown
+    quickStudyRate: 0.5, // $ per second left when you press Ready (paid only if you win)
     shopOffers: 3,
     rerollBase: 1,
     rarityWeights: { common: 6, uncommon: 3, rare: 1 },
@@ -18,7 +22,9 @@ window.Taroe = window.Taroe || {};
   const BASE_STATS = {
     hands: 3,
     strikes: 2,
-    revealBonus: 0,
+    revealBonus: 0, // flat extra seconds per countdown
+    revealMult: 0, // +x% memorize time
+    timeWard: 0, // boss time cuts to ignore
     luck: 0,
     rewardPerHand: 1,
     rewardPerStrike: 2,
@@ -62,6 +68,7 @@ window.Taroe = window.Taroe || {};
       this.mode = this.settings.mode;
       this.difficulty = this.settings.difficulty in RULES.growth ? this.settings.difficulty : 'normal';
       this.bossesFaced = 0;
+      this.bossesBeaten = 0;
       this.level = 1;
       this.money = 0;
       this.deck = T.CARDS.map((c) => c.id);
@@ -77,6 +84,22 @@ window.Taroe = window.Taroe || {};
     restart() {
       this.newRun();
       this.startLevel();
+    }
+
+    goToTitle() {
+      this.newRun();
+      this.setPhase('title');
+    }
+
+    // Memorize time is budgeted per card you have to learn, and tightens after each boss.
+    secondsPerCard() {
+      const cuts = Math.max(0, this.bossesBeaten - this.stat('timeWard'));
+      return Math.max(RULES.minSecondsPerCard, this.settings.secondsPerCard * RULES.bossTimeCut ** cuts);
+    }
+
+    memorizeTime(newCards) {
+      const t = newCards * this.secondsPerCard() * (1 + this.stat('revealMult')) + this.stat('revealBonus');
+      return Math.max(RULES.minMemorize, Math.round(t * 10) / 10);
     }
 
     targetLength(level = this.level) {
@@ -101,6 +124,7 @@ window.Taroe = window.Taroe || {};
 
     startLevel() {
       const len = this.targetLength();
+      const previous = new Set(this.sequence);
       if (this.mode === 'normal') {
         // The spread grows: last level's cards stay, in order, new ones are appended.
         const seq = this.sequence.filter((id) => this.deck.includes(id));
@@ -120,7 +144,9 @@ window.Taroe = window.Taroe || {};
         strikes,
         maxHands: hands,
         maxStrikes: strikes,
-        revealTime: this.settings.revealTime + this.stat('revealBonus'),
+        newCards: 0,
+        revealTime: 0,
+        secondsLeft: 0, // banked by pressing Ready early
         revealed: new Set(), // slot indices that stay face up
         marked: new Set(), // card ids highlighted in the pane
         placed: Array(len).fill(null),
@@ -132,6 +158,9 @@ window.Taroe = window.Taroe || {};
         twisted: false,
         version: 0, // bumps when a boss rewrites the sequence
       };
+      this.round.newCards =
+        this.mode === 'normal' ? this.sequence.filter((id) => !previous.has(id)).length || len : len;
+      this.round.revealTime = this.memorizeTime(this.round.newCards);
       this.runHook('onRoundSetup', this.ctx());
       this.setPhase(this.round.boss ? 'bossIntro' : 'memorize');
     }
@@ -160,9 +189,10 @@ window.Taroe = window.Taroe || {};
     }
 
     // Memorize time is up (or the player is ready). A boss twists the spread first.
-    finishMemorize() {
+    finishMemorize(secondsLeft = 0) {
       if (this.phase !== 'memorize') return;
       const r = this.round;
+      r.secondsLeft += Math.max(0, secondsLeft);
       if (r.boss && !r.twisted) {
         const before = this.sequence.slice();
         const { sequence, highlight = [] } = r.boss.apply(before.slice(), this.ctx());
@@ -172,6 +202,9 @@ window.Taroe = window.Taroe || {};
         r.version++;
         r.placed = Array(sequence.length).fill(null);
         r.isFinal = sequence.length === this.deck.length;
+        // A recount only budgets time for the cards that actually moved.
+        r.newCards = sequence.filter((id, i) => before[i] !== id).length || 1;
+        r.revealTime = this.memorizeTime(r.newCards);
         this.phase = 'twist';
         // The UI animates from `before` to `after`, then calls afterTwist().
         this.emit('twist', { boss: r.boss, before, after: sequence.slice(), highlight });
@@ -339,6 +372,9 @@ window.Taroe = window.Taroe || {};
       const flat = this.stat('rewardFlat');
       if (flat) ctx.addRewardLine('Merchant’s Purse', flat);
       if (r.boss && r.boss.reward) ctx.addRewardLine(`${r.boss.name} defeated`, r.boss.reward);
+      const quick = Math.floor(r.secondsLeft * RULES.quickStudyRate);
+      if (quick > 0) ctx.addRewardLine(`Quick study (${r.secondsLeft.toFixed(1)}s early)`, quick);
+      if (r.boss) this.bossesBeaten++;
       this.runHook('modifyReward', ctx);
 
       const total = ctx.lines.reduce((s, l) => s + l.amount, 0);

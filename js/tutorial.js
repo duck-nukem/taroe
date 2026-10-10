@@ -32,7 +32,7 @@ window.Taroe = window.Taroe || {};
     const decoys = shuffle(T.CARDS.map((c) => c.id).filter((id) => !state.practice.includes(id))).slice(0, 3);
     state.choices = shuffle([...state.practice, ...decoys]);
 
-    const locus = (i) => s.loci[i] || `Stop ${i + 1}`;
+    const locus = (i) => T.Settings.stopName(s, i);
     const card = (id) => T.cardById(id);
 
     const progress = () => `
@@ -91,20 +91,21 @@ window.Taroe = window.Taroe || {};
             in the spread <i>is</i> its stop on your walk.</p>
           <div class="route-edit">
             ${Array.from({ length: ROUTE }, (_, i) => `
-              <label><span>${i + 1}</span><input data-locus="${i}" value="${esc(locus(i))}" maxlength="40"></label>`).join('')}
+              <label><span>${i + 1}</span><input data-locus="${i}" value="${esc(s.loci[i] || '')}" placeholder="${esc(T.Settings.DEFAULT_LOCI[i])}" maxlength="40"></label>`).join('')}
           </div>
           <p class="muted">Now close your eyes and walk it: front to back, then back to front. Can you see each stop?
-            The rest of your ${T.CARDS.length}-stop route can be edited any time in Settings.</p>
+            Fill in the rest of your ${T.CARDS.length}-stop route any time under <b>Your palace</b> — it counts how many you have.</p>
           ${nav()}`,
         bind: (el) =>
           el.querySelectorAll('[data-locus]').forEach(
             (input) =>
               (input.oninput = () => {
                 const loci = s.loci.slice();
-                loci[Number(input.dataset.locus)] = input.value.trim() || T.Settings.DEFAULT_LOCI[Number(input.dataset.locus)];
+                loci[Number(input.dataset.locus)] = input.value.trim();
                 s.loci = loci;
                 T.Settings.save(s);
                 ui.renderSlots();
+                ui.renderHud();
               })
           ),
       }),

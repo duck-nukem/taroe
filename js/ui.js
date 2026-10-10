@@ -35,8 +35,9 @@ window.Taroe = window.Taroe || {};
         game.clearPlaced();
         this.renderTable();
       });
-      $('#btn-ready').addEventListener('click', () => game.finishMemorize());
+      $('#btn-ready').addEventListener('click', () => this.ready());
       $('#btn-tutorial').addEventListener('click', () => T.openPalaceTutorial(this));
+      $('#btn-palace').addEventListener('click', () => this.openPalace());
       $('#btn-settings').addEventListener('click', () => this.openSettings());
       $('#btn-help').addEventListener('click', () => this.openHelp());
       $('#modal').addEventListener('click', (e) => {
@@ -98,7 +99,7 @@ window.Taroe = window.Taroe || {};
       } else if (e.key === 'Backspace' && g.phase === 'recall') {
         g.undo();
       } else if (e.key === ' ' && g.phase === 'memorize') {
-        g.finishMemorize();
+        this.ready();
       } else return;
       e.preventDefault();
     }
@@ -124,6 +125,8 @@ window.Taroe = window.Taroe || {};
       $('#level').textContent = g.level;
       const until = g.levelsUntilBoss();
       $('#level-sub').textContent = `${r ? g.sequence.length : g.targetLength()} of ${g.deck.length} cards`;
+      $('#pace-sub').textContent = `⏱ ${g.secondsPerCard().toFixed(1)}s per new card`;
+      $('#btn-palace').textContent = `Your palace · ${this.palaceCount()}/${T.Settings.ROUTE_LENGTH}`;
       $('#boss-sub').textContent = until === 0 ? (r && r.boss ? `${r.boss.icon} ${r.boss.name}` : 'Boss level') : `Boss in ${until}`;
       $('#boss-sub').classList.toggle('now', until === 0);
       $('#hands').innerHTML = this.pips(r ? r.hands : g.stat('hands'), r ? r.maxHands : g.stat('hands'));
@@ -167,7 +170,8 @@ window.Taroe = window.Taroe || {};
       const boss = r && r.boss;
       if (g.phase === 'memorize') {
         title.textContent = r.twisted ? 'Memorize the new order' : 'Memorize';
-        sub.textContent = `Level ${g.level} · ${g.sequence.length} cards${boss ? ` · Boss: ${boss.name}` : ''} · Space when ready`;
+        const fresh = r.newCards === g.sequence.length ? `${r.newCards} cards` : `${r.newCards} new of ${g.sequence.length}`;
+        sub.textContent = `Level ${g.level} · ${fresh} · ${r.revealTime.toFixed(1)}s${boss ? ` · Boss: ${boss.name}` : ''} · Space when ready (finish early for a bonus)`;
       } else if (g.phase === 'twist') {
         title.textContent = `${boss.icon} ${boss.name}`;
         sub.textContent = boss.twistText;
@@ -243,7 +247,7 @@ window.Taroe = window.Taroe || {};
         el.classList.toggle('next', g.phase === 'recall' && r.placed.indexOf(null) === i);
         const locus = g.locusOf(i);
         el.querySelector('.locus').textContent =
-          this.settings.palace && locus != null ? this.settings.loci[locus] || `Stop ${locus + 1}` : '';
+          this.settings.palace && locus != null ? T.Settings.stopName(this.settings, locus) : '';
       });
     }
 
@@ -353,7 +357,11 @@ window.Taroe = window.Taroe || {};
             ${this.settings.tutorialDone ? '' : '<p class="nudge">New to memory palaces? Take the 3-minute tutorial first — it’s the trick that makes this game work.</p>'}
             <div class="actions">
               <button class="primary big" data-act="start">Begin</button>
-              <button class="${this.settings.tutorialDone ? '' : 'glow'}" data-act="tutorial">Memory palace tutorial</button>
+            </div>
+            <div class="actions secondary">
+              <button class="${this.settings.tutorialDone ? '' : 'glow'}" data-act="tutorial">Tutorial</button>
+              <button data-act="palace">Your palace · ${this.palaceCount()}/${T.Settings.ROUTE_LENGTH}</button>
+              <button data-act="settings">Settings</button>
               <button data-act="help">How to play</button>
             </div>`,
           bind: (el) => {
@@ -367,6 +375,8 @@ window.Taroe = window.Taroe || {};
             );
             el.querySelector('[data-act=start]').onclick = () => this.game.restart();
             el.querySelector('[data-act=tutorial]').onclick = () => T.openPalaceTutorial(this);
+            el.querySelector('[data-act=palace]').onclick = () => this.openPalace();
+            el.querySelector('[data-act=settings]').onclick = () => this.openSettings();
             el.querySelector('[data-act=help]').onclick = () => this.openHelp();
           },
         }),
@@ -396,6 +406,11 @@ window.Taroe = window.Taroe || {};
                 <ul class="lines">
                   ${g.lastReward.lines.map((l) => `<li><span>${esc(l.label)}</span><b>+$${l.amount}</b></li>`).join('')}
                 </ul>
+                ${
+                  g.round.boss
+                    ? `<p class="clock-note">⏱ The clock tightens — memorize time is now <b>${g.secondsPerCard().toFixed(1)}s per new card</b>.</p>`
+                    : ''
+                }
               </div>
               <div class="reward-total">
                 <span class="lbl">Earned</span><b>$${g.lastReward.total}</b>
@@ -453,10 +468,10 @@ window.Taroe = window.Taroe || {};
                   Study the true order above before you begin again.</p>
               </div>
               <div class="reward-total">
-                <button class="primary big" data-act="restart">Start over</button>
+                <button class="primary big" data-act="restart">Back to the start</button>
               </div>
             </div>`,
-          bind: (el) => (el.querySelector('[data-act=restart]').onclick = () => g.restart()),
+          bind: (el) => (el.querySelector('[data-act=restart]').onclick = () => g.goToTitle()),
         }),
 
         victory: (g) => ({
@@ -467,7 +482,7 @@ window.Taroe = window.Taroe || {};
               The Fool's journey is complete — and, as always, it begins again.</p>
             <p class="muted center">Final purse: $${g.money}</p>
             <div class="actions"><button class="primary big" data-act="restart">Begin anew</button></div>`,
-          bind: (el) => (el.querySelector('[data-act=restart]').onclick = () => g.restart()),
+          bind: (el) => (el.querySelector('[data-act=restart]').onclick = () => g.goToTitle()),
         }),
       };
     }
@@ -544,6 +559,13 @@ window.Taroe = window.Taroe || {};
 
     // ---- memorize timer -----------------------------------------------------
 
+    // Done memorizing early: the seconds left count toward the Quick study bonus.
+    ready() {
+      const t = this.timer;
+      const left = t && t.delay <= 0 ? Math.max(0, t.remaining / 1000) : 0;
+      this.game.finishMemorize(left);
+    }
+
     startTimer() {
       const g = this.game;
       const total = g.round.revealTime * 1000;
@@ -609,15 +631,95 @@ window.Taroe = window.Taroe || {};
       );
     }
 
+    palaceCount() {
+      return this.settings.loci.filter((x) => x.trim()).length;
+    }
+
+    // Palace editor: one stop per card, with a live count toward the full route.
+    openPalace() {
+      const s = this.settings;
+      const total = T.Settings.ROUTE_LENGTH;
+      const status = (el) => {
+        const n = this.palaceCount();
+        const names = s.loci.map((x) => x.trim().toLowerCase()).filter(Boolean);
+        const dupes = [...new Set(names.filter((x, i) => names.indexOf(x) !== i))];
+        el.querySelector('#palace-n').textContent = n;
+        el.querySelector('#palace-bar').style.width = `${(n / total) * 100}%`;
+        el.querySelector('.palace-count').classList.toggle('complete', n === total && !dupes.length);
+        el.querySelector('#palace-msg').textContent = dupes.length
+          ? `Each stop should be a different place — “${dupes[0]}” appears twice.`
+          : n === total
+            ? 'Complete — enough stops for the whole Major Arcana.'
+            : `${total - n} more to go. Until then, empty stops borrow the example route (shown in grey).`;
+        el.querySelectorAll('.palace-grid label').forEach((row, i) =>
+          row.classList.toggle('empty', !s.loci[i].trim())
+        );
+      };
+      const save = (el) => {
+        T.Settings.save(s);
+        status(el);
+        this.renderSlots();
+        this.renderHud();
+        if (this.game.phase === 'title') this.renderStage();
+      };
+      this.openModal(
+        `<h2>Your memory palace</h2>
+         <p>Walk through a place you know by heart and name one distinct stop per card, in walking order.
+           Big, physical things work best: a door, a mirror, a bathtub.</p>
+         <div class="palace-count">
+           <div><b id="palace-n">0</b> / ${total} stops</div>
+           <div class="bar"><i id="palace-bar"></i></div>
+           <small id="palace-msg"></small>
+         </div>
+         <div class="palace-grid">
+           ${s.loci
+             .map(
+               (name, i) => `
+             <label><span>${i + 1}</span>
+               <input data-stop="${i}" value="${esc(name)}" maxlength="40" placeholder="${esc(T.Settings.DEFAULT_LOCI[i])}">
+             </label>`
+             )
+             .join('')}
+         </div>
+         <div class="actions">
+           <button data-act="example">Use example route</button>
+           <button data-act="clear">Clear all</button>
+           <button class="primary" data-act="close">Done</button>
+         </div>`,
+        (el) => {
+          status(el);
+          el.querySelectorAll('[data-stop]').forEach(
+            (input) =>
+              (input.oninput = () => {
+                s.loci[Number(input.dataset.stop)] = input.value.trim();
+                save(el);
+              })
+          );
+          const fill = (values) => {
+            s.loci = values.slice();
+            el.querySelectorAll('[data-stop]').forEach((input, i) => (input.value = s.loci[i]));
+            save(el);
+          };
+          el.querySelector('[data-act=example]').onclick = () => fill(T.Settings.DEFAULT_LOCI);
+          el.querySelector('[data-act=clear]').onclick = () => {
+            fill(Array(total).fill(''));
+            el.querySelector('[data-stop]').focus();
+          };
+          el.querySelector('[data-act=close]').onclick = () => this.closeModal(null);
+        }
+      );
+    }
+
     openSettings() {
       const s = this.settings;
       const save = () => T.Settings.save(s);
       this.openModal(
         `<h2>Settings</h2>
          <label class="field">
-           <span>Memorize time <b id="rt-val">${s.revealTime}s</b></span>
-           <input type="range" min="1" max="7" step="1" value="${s.revealTime}" id="rt">
-           <small>How long the spread stays face up. Applies from the next level. Hourglasses add on top.</small>
+           <span>Memorize time <b id="rt-val">${s.secondsPerCard}s per new card</b></span>
+           <input type="range" min="1" max="5" step="0.5" value="${s.secondsPerCard}" id="rt">
+           <small>Only cards you haven’t learned yet count. Each boss you beat cuts this by 15% (never below 0.8s).
+             Applies from the next level.</small>
          </label>
          <fieldset class="field">
            <span>Difficulty</span>
@@ -641,20 +743,23 @@ window.Taroe = window.Taroe || {};
            <input type="checkbox" id="palace" ${s.palace ? 'checked' : ''}>
            <span><b>Memory palace</b> — label each position with a place (a locus) to hang the card on.</span>
          </label>
-         <label class="field">
-           <span>Your palace — one place per line, in walking order</span>
-           <textarea id="loci" rows="7">${esc(s.loci.join('\n'))}</textarea>
-           <small>Use a route you know by heart: your home, your commute. ${T.CARDS.length} stops cover the whole deck.</small>
-         </label>
+         <div class="field">
+           <span>Your palace</span>
+           <div class="palace-summary">
+             <span>${this.palaceCount()} of ${T.Settings.ROUTE_LENGTH} stops filled</span>
+             <button data-act="palace">Edit palace</button>
+           </div>
+         </div>
          <div class="actions">
-           <button data-act="newrun">Start a new run</button>
+           <button data-act="newrun">Quit to title</button>
            <button class="primary" data-act="close">Done</button>
          </div>`,
         (el) => {
           el.querySelector('#rt').oninput = (e) => {
-            s.revealTime = Number(e.target.value);
-            el.querySelector('#rt-val').textContent = `${s.revealTime}s`;
+            s.secondsPerCard = Number(e.target.value);
+            el.querySelector('#rt-val').textContent = `${s.secondsPerCard}s per new card`;
             save();
+            this.renderHud();
           };
           el.querySelectorAll('[name=difficulty]').forEach(
             (r) => (r.onchange = () => {
@@ -673,16 +778,11 @@ window.Taroe = window.Taroe || {};
             save();
             this.renderSlots();
           };
-          el.querySelector('#loci').oninput = (e) => {
-            const loci = e.target.value.split('\n').map((x) => x.trim()).filter(Boolean);
-            s.loci = loci.length ? loci : T.Settings.DEFAULT_LOCI.slice();
-            save();
-            this.renderSlots();
-          };
+          el.querySelector('[data-act=palace]').onclick = () => this.openPalace();
           el.querySelector('[data-act=close]').onclick = () => this.closeModal(null);
           el.querySelector('[data-act=newrun]').onclick = () => {
             this.closeModal(null);
-            this.game.restart();
+            this.game.goToTitle();
           };
         }
       );
@@ -699,6 +799,8 @@ window.Taroe = window.Taroe || {};
              Playing a card that wasn't in the spread (or leaving one out) costs a hand.
              The right cards in the wrong order cost a strike. Run out of either and the run is over.</li>
            <li>Win a round: <b>$1</b> per hand left, <b>$2</b> per strike left. Spend it in the shop.</li>
+           <li>Memorize time is counted per <b>new</b> card (default 2.5s). Every boss you beat cuts it by 15%.
+             Press <kbd>Space</kbd> as soon as you have it: seconds left over pay a <b>Quick study</b> bonus if you win the round.</li>
            <li>In <i>Growing chain</i> mode the spread keeps its order and grows each level (+1 easier, +2 normal, +3 hard), until you hold all ${T.CARDS.length}.</li>
            <li>Every third level is a <b>boss</b>. Bosses twist the spread — swap two cards, steal one, reverse it, scatter it —
              and the twisted order is what you keep for the rest of the run.</li>
@@ -708,7 +810,7 @@ window.Taroe = window.Taroe || {};
            Each position in the spread is a stop on that walk, shown under the card. When a card appears,
            imagine it vividly at that stop: <i>Death is knocking at the front door; the Hanged Man swings from the coat hook.</i>
            The stranger and more sensory the image, the better it sticks. To recall, walk the route again and see who is there.</p>
-         <p class="muted">New to this? Try the memory palace tutorial from the sidebar. Edit your route in Settings. Keys: <kbd>Space</kbd> ready · <kbd>Enter</kbd> play · <kbd>Backspace</kbd> undo.</p>
+         <p class="muted">New to this? Try the tutorial, then build your own route under “Your palace”. Keys: <kbd>Space</kbd> ready · <kbd>Enter</kbd> play · <kbd>Backspace</kbd> undo.</p>
          <div class="actions"><button class="primary" data-act="close">Got it</button></div>`,
         (el) => (el.querySelector('[data-act=close]').onclick = () => this.closeModal(null))
       );

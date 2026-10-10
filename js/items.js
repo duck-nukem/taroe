@@ -15,7 +15,9 @@
 //
 //   stats        passive only: numbers added per stack to the game stats:
 //                  hands, strikes        round start values
-//                  revealBonus           extra memorize seconds
+//                  revealBonus           flat extra memorize seconds
+//                  revealMult            +x% memorize time (0.2 = +20%)
+//                  timeWard              boss time cuts to ignore
 //                  luck                  added to every ctx.roll() chance (can be negative)
 //                  rewardPerHand, rewardPerStrike, rewardFlat
 //
@@ -101,8 +103,8 @@ Taroe.Items.register({
   rarity: 'common',
   price: 4,
   maxStacks: 3,
-  description: (n) => `+${n}s to memorize.`,
-  stats: { revealBonus: 1 },
+  description: (n) => `+${n * 20}% memorize time.`,
+  stats: { revealMult: 0.2 },
 });
 
 Taroe.Items.register({
@@ -180,4 +182,16 @@ Taroe.Items.register({
   maxStacks: 3,
   description: (n) => `+$${n} for every round won.`,
   stats: { rewardFlat: 1 },
+});
+
+Taroe.Items.register({
+  id: 'stopped-clock',
+  name: 'Stopped Clock',
+  icon: '🕰',
+  rarity: 'rare',
+  price: 7,
+  maxStacks: 2,
+  description: (n) => `Ignore ${n > 1 ? `${n} bosses’` : 'one boss’s'} cut to your memorize time.`,
+  available: (game) => game.bossesBeaten > 0,
+  stats: { timeWard: 1 },
 });
