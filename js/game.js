@@ -66,6 +66,7 @@ window.Taroe = window.Taroe || {};
       this.money = 0;
       this.deck = T.CARDS.map((c) => c.id);
       this.sequence = [];
+      this.lociOf = new Map(); // card id -> index into settings.loci; bosses move cards, places go with them
       this.owned = {}; // item id -> stacks
       this.round = null;
       this.shop = null;
@@ -108,7 +109,9 @@ window.Taroe = window.Taroe || {};
         this.sequence = seq;
       } else {
         this.sequence = shuffle(this.deck).slice(0, len);
+        this.lociOf = new Map();
       }
+      this.assignLoci();
 
       const hands = this.stat('hands');
       const strikes = this.stat('strikes');
@@ -133,6 +136,25 @@ window.Taroe = window.Taroe || {};
       this.setPhase(this.round.boss ? 'bossIntro' : 'memorize');
     }
 
+    // Each card keeps its palace stop for the whole run. New cards take the next stops
+    // along the route; stops freed by a stolen card are only reused once the route runs out.
+    assignLoci() {
+      for (const id of [...this.lociOf.keys()]) if (!this.sequence.includes(id)) this.lociOf.delete(id);
+      const used = new Set(this.lociOf.values());
+      const routeLength = Math.max(this.settings.loci ? this.settings.loci.length : 0, T.CARDS.length);
+      for (const id of this.sequence) {
+        if (this.lociOf.has(id)) continue;
+        let next = used.size ? Math.max(...used) + 1 : 0;
+        if (next >= routeLength) for (next = 0; used.has(next); ) next++;
+        this.lociOf.set(id, next);
+        used.add(next);
+      }
+    }
+
+    locusOf(slot) {
+      return this.lociOf.get(this.sequence[slot]);
+    }
+
     faceBoss() {
       if (this.phase === 'bossIntro') this.setPhase('memorize');
     }
@@ -145,6 +167,7 @@ window.Taroe = window.Taroe || {};
         const before = this.sequence.slice();
         const { sequence, highlight = [] } = r.boss.apply(before.slice(), this.ctx());
         this.sequence = sequence;
+        this.assignLoci(); // forget stops of cards the boss removed
         r.twisted = true;
         r.version++;
         r.placed = Array(sequence.length).fill(null);

@@ -241,7 +241,9 @@ window.Taroe = window.Taroe || {};
         el.classList.toggle('won', g.phase === 'roundWon' || g.phase === 'victory');
         el.classList.toggle('lost', g.phase === 'gameOver');
         el.classList.toggle('next', g.phase === 'recall' && r.placed.indexOf(null) === i);
-        el.querySelector('.locus').textContent = this.settings.palace ? this.settings.loci[i] || '' : '';
+        const locus = g.locusOf(i);
+        el.querySelector('.locus').textContent =
+          this.settings.palace && locus != null ? this.settings.loci[locus] || `Stop ${locus + 1}` : '';
       });
     }
 

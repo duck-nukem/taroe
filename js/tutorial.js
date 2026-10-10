@@ -229,10 +229,11 @@ window.Taroe = window.Taroe || {};
             <ul class="rules">
               <li>Each slot is labelled with its stop. Glance at the label, drop the card there, move on.</li>
               <li><b>Growing chain:</b> earlier cards keep their stops — you only add new scenes further along the walk.</li>
-              <li><b>The Trickster</b> swaps two cards: picture the two visitors physically trading places.</li>
-              <li><b>The Thief</b> steals one: see that stop go empty, and remember who used to stand there.</li>
-              <li><b>The Mirror</b> reverses the spread: walk your route backwards and lay the cards down as you meet them — then re-place them at their new stops.</li>
-              <li><b>The Tower</b> scatters everything: clear the house and place everyone again.</li>
+              <li><b>Cards never leave their stop.</b> When a boss moves a card, its place moves with it — your images stay valid, only the walk changes.</li>
+              <li><b>The Trickster</b> swaps two cards: your walk now visits those two stops in swapped order.</li>
+              <li><b>The Thief</b> steals one: that stop drops out of the walk. Remember who stood there.</li>
+              <li><b>The Mirror</b> reverses the spread: walk your palace backwards.</li>
+              <li><b>The Tower</b> scatters everything: same scenes, new route through them — learn the new walk.</li>
             </ul>
             ${nav({ next: 'Done' })}`,
           next: () => {
