@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taroe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="side">
+      <div class="logo">Taroe<small id="mode-tag"></small></div>
+
+      <div class="panel level">
+        <span class="lbl">Level</span>
+        <b id="level">1</b>
+        <span id="level-sub" class="muted"></span>
+        <span id="boss-sub"></span>
+      </div>
+
+      <div class="panel counters">
+        <div class="counter hands">
+          <span class="lbl">Hands</span>
+          <b id="hands-n"></b>
+          <span class="pips" id="hands"></span>
+        </div>
+        <div class="counter strikes">
+          <span class="lbl">Strikes</span>
+          <b id="strikes-n"></b>
+          <span class="pips" id="strikes"></span>
+        </div>
+      </div>
+
+      <div class="panel money">
+        <span class="lbl">Purse</span>
+        <b id="money">$0</b>
+      </div>
+
+      <div class="panel relics-panel">
+        <span class="lbl">Relics</span>
+        <div id="relics"></div>
+      </div>
+
+      <div class="side-buttons">
+        <button id="btn-tutorial" class="wide">Memory palace tutorial</button>
+        <button id="btn-help">How to play</button>
+        <button id="btn-settings">Settings</button>
+      </div>
+    </aside>
+
+    <main id="table">
+      <header id="banner">
+        <div class="banner-text">
+          <h2 id="banner-title"></h2>
+          <p id="banner-sub"></p>
+        </div>
+        <div id="timer" hidden><div id="timer-fill"></div><span id="timer-text"></span></div>
+        <button id="btn-ready" class="primary" hidden>Ready</button>
+      </header>
+
+      <section id="spread"><div id="slots"></div></section>
+
+      <section id="pane">
+        <div id="pane-cards"></div>
+        <div id="pane-hint"></div>
+        <div class="pane-actions">
+          <button id="btn-clear">Clear</button>
+          <button id="btn-play" class="primary big">Play</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="stage" hidden><div class="sheet" id="stage-sheet"></div></div>
+  <div id="modal" hidden><div class="sheet" id="modal-sheet"></div></div>
+  <div id="toasts"></div>
+  <canvas id="confetti"></canvas>
+
+  <script src="js/cards.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/bosses.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

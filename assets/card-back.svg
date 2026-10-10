@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 396">
+  <defs>
+    <pattern id="p" width="23" height="23" patternUnits="userSpaceOnUse">
+      <path d="M11.5 4 L13 10 L19 11.5 L13 13 L11.5 19 L10 13 L4 11.5 L10 10 Z" fill="#2c3d6e"/>
+    </pattern>
+    <radialGradient id="g" cx="50%" cy="50%" r="70%">
+      <stop offset="0" stop-color="#22305a"/>
+      <stop offset="1" stop-color="#121a33"/>
+    </radialGradient>
+  </defs>
+  <rect width="230" height="396" rx="14" fill="#f1e6cc"/>
+  <rect x="10" y="10" width="210" height="376" rx="8" fill="url(#g)"/>
+  <rect x="10" y="10" width="210" height="376" rx="8" fill="url(#p)" opacity=".8"/>
+  <rect x="18" y="18" width="194" height="360" rx="5" fill="none" stroke="#d9b45f" stroke-width="2"/>
+  <rect x="24" y="24" width="182" height="348" rx="3" fill="none" stroke="#d9b45f" stroke-width=".8" opacity=".7"/>
+  <g transform="translate(115 198)" fill="none" stroke="#e8c36d" stroke-width="2">
+    <circle r="52" fill="#121a33"/>
+    <circle r="44" stroke-width=".8"/>
+    <path d="M0 -36 L8 -8 L36 0 L8 8 L0 36 L-8 8 L-36 0 L-8 -8 Z" fill="#e8c36d"/>
+    <path d="M0 -24 L5 -5 L24 0 L5 5 L0 24 L-5 5 L-24 0 L-5 -5 Z" transform="rotate(45)" fill="#b8913f" stroke="none"/>
+  </g>
+  <g fill="#e8c36d">
+    <path d="M115 52 a14 14 0 1 0 10 24 a11 11 0 1 1 -10 -24z"/>
+    <circle cx="115" cy="336" r="9"/>
+  </g>
+</svg>
